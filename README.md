@@ -1,6 +1,7 @@
 # Laravel Alert Manager
 
-[![Latest Version on Packagist](https://img.shields.io/packagist/v/ervinsvilumsons/laravel-alert.svg?style=flat-square)](https://packagist.org/packages/ervinsvilumsons/laravel-alert)
+[![Latest Version on Packagist](https://img.shields.io/packagist/v/ervinsvilumsons/laravel-alert.svg?style=flat-square)](https://packagist.org/packages/ervinsvilumsons/laravel-alert)[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fervinsvilumsons%2Flaravel-alert.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fervinsvilumsons%2Flaravel-alert?ref=badge_shield)
+
 ![PHP 8.3+](https://img.shields.io/badge/PHP-8.3%2B-777BB4?logo=php)
 ![Laravel 10+](https://img.shields.io/badge/Laravel-10%2B-FF2D20?logo=laravel&logoColor=white)
 [![Tests](https://github.com/ervinsvilumsons/laravel-alert/actions/workflows/ci.yml/badge.svg)](https://github.com/ervinsvilumsons/laravel-alert/actions/workflows/ci.yml)
@@ -67,3 +68,6 @@ To add or replace notification channels, create a notification class with the sa
 ## ⚖️ License
 
 Laravel Alert Manager is released under the [MIT License](LICENSE).
+
+
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fervinsvilumsons%2Flaravel-alert.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fervinsvilumsons%2Flaravel-alert?ref=badge_large)
