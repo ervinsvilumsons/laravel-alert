@@ -1,0 +1,20 @@
+name: Policy
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  source-branch:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check source branch
+        run: |
+          if [ "${{ github.head_ref }}" != "staging" ]; then
+            echo "❌ Only staging can be merged into main."
+            exit 1
+          fi
+
+          echo "✅ PR is from staging."

@@ -1,0 +1,4 @@
+.phpunit.*
+coverage.xml
+/coverage
+/vendor/

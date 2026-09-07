@@ -1,0 +1,78 @@
+{
+    "name": "ervinsvilumsons/laravel-alert",
+    "description": "Laravel Alert is a package that provides an easy way to notify failed service alerts in Laravel applications.",
+    "keywords": [
+        "ervinsvilumsons",
+        "laravel",
+        "laravel-alert"
+    ],
+    "homepage": "https://github.com/ervinsvilumsons/laravel-alert",
+    "license": "MIT",
+    "type": "library",
+    "authors": [
+        {
+            "name": "ervinsvilumsons",
+            "email": "ervins.vilumsons@gmail.com"
+        }
+    ],
+    "require": {
+        "php": "^8.3"
+    },
+    "require-dev": {
+        "laravel/pint": "^1.30",
+        "laravel/slack-notification-channel": "^3.10",
+        "orchestra/testbench": "^11.2",
+        "pestphp/pest": "^5",
+        "phpstan/phpstan": "^2.2",
+        "rector/rector": "^2.6"
+    },
+    "suggest": {
+        "laravel/slack-notification-channel": "Required to send Slack notifications"
+    },
+    "autoload": {
+        "psr-4": {
+            "ErvinsVilumsons\\LaravelAlert\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "ErvinsVilumsons\\LaravelAlert\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "prepare": "@php vendor/bin/testbench package:discover --ansi",
+        "analyse": "@php vendor/bin/phpstan analyse src tests --level=10",
+        "format": "@php vendor/bin/pint",
+        "format:test": "@php vendor/bin/pint --test",
+        "refactor": "@php vendor/bin/rector",
+        "refactor:test": "@php vendor/bin/rector --dry-run",
+        "test": "@php vendor/bin/pest",
+        "test:coverage": "XDEBUG_MODE=develop,coverage php vendor/bin/pest --coverage --coverage-clover=coverage.xml --min=80",
+        "check": [
+            "@composer audit",
+            "@composer validate --strict",
+            "@format:test",
+            "@refactor:test",
+            "@analyse",
+            "@test:coverage"
+        ]
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true,
+            "phpstan/extension-installer": true
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "ErvinsVilumsons\\LaravelAlert\\AlertManagerServiceProvider"
+            ],
+            "aliases": {
+                "AlertManager": "ErvinsVilumsons\\LaravelAlert\\Facades\\AlertManager"
+            }
+        }
+    },
+    "prefer-stable": true
+}
