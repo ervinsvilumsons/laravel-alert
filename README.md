@@ -4,6 +4,7 @@
 ![PHP 8.3+](https://img.shields.io/badge/PHP-8.3%2B-777BB4?logo=php)
 ![Laravel 10+](https://img.shields.io/badge/Laravel-10%2B-FF2D20?logo=laravel&logoColor=white)
 [![Tests](https://github.com/ervinsvilumsons/laravel-alert/actions/workflows/ci.yml/badge.svg)](https://github.com/ervinsvilumsons/laravel-alert/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/github/ervinsvilumsons/laravel-alert/branch/staging/graph/badge.svg?token=0F2HQQXZH2)](https://codecov.io/github/ervinsvilumsons/laravel-alert)
 [![License](https://img.shields.io/github/license/ervinsvilumsons/laravel-alert)](https://github.com/ervinsvilumsons/laravel-alert/blob/main/LICENSE)
 
 Laravel Alert provides a small, configurable way to notify a group of recipients.
