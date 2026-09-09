@@ -11,9 +11,10 @@ beforeEach(function () {
 
 it('can send an alert using the facade', function () {
     Config::set('alert-manager.enabled', true);
-    Config::set('alert-manager.notifiables', ['admin@example.com']);
+    Config::set('alert-manager.channels', ['mail' => ['admin@example.com']]);
 
     AlertManager::send(
+        key: 'test',
         title: 'Test Alert',
         message: 'Something went wrong',
         context: ['foo' => 'bar'],
@@ -25,19 +26,19 @@ it('can send an alert using the facade', function () {
 
 it('does not send an alert when disabled', function () {
     Config::set('alert-manager.enabled', false);
-    Config::set('alert-manager.notifiables', ['admin@example.com']);
+    Config::set('alert-manager.channels', ['mail' => ['admin@example.com']]);
 
-    AlertManager::send('Test', 'Message');
+    AlertManager::send('test', 'Test', 'Message');
 
     Notification::assertNothingSent();
 });
 
 it('uses the custom notification class from config', function () {
     Config::set('alert-manager.enabled', true);
-    Config::set('alert-manager.notifiables', ['admin@example.com']);
+    Config::set('alert-manager.channels', ['mail' => ['admin@example.com']]);
     Config::set('alert-manager.notification', AlertNotification::class);
 
-    AlertManager::send('Custom', 'Using custom notification');
+    AlertManager::send('custom', 'Custom', 'Using custom notification');
 
     Notification::assertSentOnDemand(AlertNotification::class);
 });

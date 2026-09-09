@@ -21,12 +21,8 @@ abstract class TestCase extends Orchestra
         $config = $app['config'];
 
         $config->set('alert-manager.enabled', true);
-        $config->set('alert-manager.channels', ['mail']);
-        $config->set('alert-manager.notifiables', ['admin@example.com']);
-        $config->set('alert-manager.queues.only', []);
-        $config->set('alert-manager.queues.except', []);
-        $config->set('alert-manager.deduplication.enabled', false);
-        $config->set('alert-manager.throttle.enabled', false);
+        $config->set('alert-manager.channels', ['mail' => ['admin@example.com']]);
+        $config->set('alert-manager.throttle', 3600);
 
         $config->set('cache.default', 'array');
         $config->set('queue.default', 'sync');

@@ -9,5 +9,5 @@ interface AlertManagerContract
     /**
      * @param  array<string, mixed>  $context
      */
-    public static function send(string $title, string $message, array $context = [], string $level = 'error'): void;
+    public static function send(string $key, string $title, string $message, array $context = [], string $level = 'error'): void;
 }

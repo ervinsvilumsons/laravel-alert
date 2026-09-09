@@ -18,7 +18,7 @@ composer require ervinsvilumsons/laravel-alert
 Publish the configuration:
 
 ```bash
-php artisan vendor:publish --tag=alert-manager-config
+php artisan vendor:publish --tag=alert-manager
 ```
 
 This creates `config/alert-manager.php`.
@@ -29,6 +29,7 @@ This creates `config/alert-manager.php`.
 use AlertManager;
 
 AlertManager::send(
+    key: 'order_' . $order->id,
     title: 'Payment service unavailable',
     message: 'The payment provider did not respond.',
     context: [
@@ -46,12 +47,11 @@ The default configuration is:
 ```php
 return [
     'enabled' => env('ALERTS_ENABLED', true),
-    'queue' => env('ALERTS_QUEUE', 'default'),
     'channels' => [
-        'mail',
-        // 'slack',
+        'mail' => ['admin@example.com'],
+        // 'slack' => ['webhook-url'],
     ],
-    'notifiables' => [],
+    'throttle' => 3600,
     'notification' => AlertNotification::class,
 ];
 ```
