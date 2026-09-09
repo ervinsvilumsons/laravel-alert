@@ -17,6 +17,6 @@ class AlertManagerServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        $this->publishes([__DIR__.'/../config/alert-manager.php' => config_path('alert-manager.php')], 'alert-manager-config');
+        $this->publishes([__DIR__.'/../config/alert-manager.php' => config_path('alert-manager.php')], 'alert-manager');
     }
 }

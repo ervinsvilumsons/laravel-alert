@@ -28,7 +28,7 @@ function createNotification(): AlertNotification
 }
 
 it('uses channels from config', function () {
-    config(['alert-manager.channels' => ['mail', 'slack']]);
+    config(['alert-manager.channels' => ['mail' => [], 'slack' => []]]);
 
     $notification = createNotification();
     $notifiable = new stdClass;

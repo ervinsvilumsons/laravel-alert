@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace ErvinsVilumsons\LaravelAlert\Notifications;
 
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Notifications\Slack\BlockKit\Blocks\ContextBlock;
@@ -13,29 +11,28 @@ use Illuminate\Notifications\Slack\BlockKit\Blocks\SectionBlock;
 use Illuminate\Notifications\Slack\SlackMessage;
 use Illuminate\Support\Facades\Config;
 
-class AlertNotification extends Notification implements ShouldQueue
+class AlertNotification extends Notification
 {
-    use Queueable;
-
     const string SUBJECT = 'Service Alert';
 
     /**
      * @param  array{title: string, message: string, context: array<string, mixed>, level: string}  $data
      */
-    public function __construct(public array $data)
-    {
-        $this->onQueue(Config::string('alert-manager.queue'));
-    }
+    public function __construct(public array $data) {}
 
     /**
      * @return array<int, string>
      */
     public function via(object $notifiable): array
     {
-        /** @var array<int, string> $channels */
-        $channels = Config::array('alert-manager.channels', ['mail']);
-
-        return $channels;
+        return array_values(
+            array_unique(
+                array_filter(
+                    array_keys(Config::array('alert-manager.channels', ['mail' => []])),
+                    is_string(...),
+                )
+            )
+        );
     }
 
     private function formatValue(mixed $value): string
