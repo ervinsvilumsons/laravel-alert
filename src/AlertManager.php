@@ -9,6 +9,8 @@ use ErvinsVilumsons\LaravelAlert\Notifications\AlertNotification;
 use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class AlertManager implements AlertManagerContract
 {
@@ -40,14 +42,21 @@ class AlertManager implements AlertManagerContract
             AlertNotification::class,
         );
 
-        self::getNotifiables($channels)->notify(
-            new $notificationClass([
-                'title' => $title,
-                'message' => $message,
-                'context' => $context,
-                'level' => $level,
-            ])
-        );
+        try {
+            self::getNotifiables($channels)->notify(
+                new $notificationClass([
+                    'title' => $title,
+                    'message' => $message,
+                    'context' => $context,
+                    'level' => $level,
+                ])
+            );
+        } catch (Throwable $e) {
+            Log::error('Failed to send alert', [
+                'exception' => $e,
+                'notification' => $notificationClass,
+            ]);
+        }
     }
 
     private static function checkEnabled(): bool
@@ -71,7 +80,7 @@ class AlertManager implements AlertManagerContract
                 true,
                 Config::integer('alert-manager.throttle'),
             );
-        } catch (\Throwable) {
+        } catch (Throwable) {
             // Cache unavailable — continue sending the alert.
             return true;
         }
