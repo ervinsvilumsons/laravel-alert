@@ -56,8 +56,6 @@ class AlertManager implements AlertManagerContract
                 'exception' => $e,
                 'notification' => $notificationClass,
             ]);
-
-            throw $e;
         }
     }
 
