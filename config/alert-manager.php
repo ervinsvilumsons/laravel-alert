@@ -5,6 +5,8 @@ use ErvinsVilumsons\LaravelAlert\Notifications\AlertNotification;
 return [
     'enabled' => env('ALERTS_ENABLED', true),
 
+    'queue' => env('ALERT_QUEUE', 'default'),
+
     'channels' => [
 
         'mail' => [

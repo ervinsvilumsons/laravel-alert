@@ -10,6 +10,7 @@ use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Queue;
 use Throwable;
 
 class AlertManager implements AlertManagerContract
@@ -44,17 +45,25 @@ class AlertManager implements AlertManagerContract
 
         foreach ($channels as $channel => $routes) {
             $notifiables = new AnonymousNotifiable;
+            $notifiables->route($channel, $routes);
+
+            $notification = new $notificationClass([
+                'title' => $title,
+                'message' => $message,
+                'context' => $context,
+                'level' => $level,
+            ]);
 
             try {
-                $notifiables
-                    ->route($channel, $routes)
-                    ->notify(new $notificationClass([
-                        'title' => $title,
-                        'message' => $message,
-                        'context' => $context,
-                        'level' => $level,
-                    ])
-                    );
+                if (self::shouldUseQueue()) {
+                    try {
+                        $notifiables->notify($notification);
+                    } catch (Throwable) {
+                        $notifiables->notifyNow($notification);
+                    }
+                } else {
+                    $notifiables->notifyNow($notification);
+                }
             } catch (Throwable $e) {
                 Log::error('Failed to send alert', [
                     'channel' => $channel,
@@ -121,5 +130,22 @@ class AlertManager implements AlertManagerContract
         }
 
         return $result;
+    }
+
+    private static function shouldUseQueue(): bool
+    {
+        $default = Config::string('queue.default', 'sync');
+
+        if ($default === 'sync') {
+            return false;
+        }
+
+        try {
+            Queue::connection($default)->size();
+
+            return true;
+        } catch (Throwable) {
+            return false;
+        }
     }
 }
