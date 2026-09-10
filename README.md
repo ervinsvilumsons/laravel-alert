@@ -50,7 +50,7 @@ return [
     'queue' => env('ALERTS_QUEUE', 'default'),
     'channels' => [
         'mail' => ['admin@example.com'],
-        // 'slack' => ['channek'],
+        // 'slack' => ['slack channel name'],
     ],
     'throttle' => 3600,
     'notification' => AlertNotification::class,
