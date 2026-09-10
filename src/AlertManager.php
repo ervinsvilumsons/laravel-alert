@@ -42,20 +42,25 @@ class AlertManager implements AlertManagerContract
             AlertNotification::class,
         );
 
-        try {
-            self::getNotifiables($channels)->notify(
-                new $notificationClass([
-                    'title' => $title,
-                    'message' => $message,
-                    'context' => $context,
-                    'level' => $level,
-                ])
-            );
-        } catch (Throwable $e) {
-            Log::error('Failed to send alert', [
-                'exception' => $e,
-                'notification' => $notificationClass,
-            ]);
+        foreach ($channels as $channel => $routes) {
+            $notifiables = new AnonymousNotifiable;
+
+            try {
+                $notifiables
+                    ->route($channel, $routes)
+                    ->notify(new $notificationClass([
+                        'title' => $title,
+                        'message' => $message,
+                        'context' => $context,
+                        'level' => $level,
+                    ])
+                    );
+            } catch (Throwable $e) {
+                Log::error('Failed to send alert', [
+                    'channel' => $channel,
+                    'exception' => $e,
+                ]);
+            }
         }
     }
 
@@ -116,19 +121,5 @@ class AlertManager implements AlertManagerContract
         }
 
         return $result;
-    }
-
-    /**
-     * @param  array<string, array<int, string>>  $channels
-     */
-    private static function getNotifiables(array $channels): AnonymousNotifiable
-    {
-        $notifiables = new AnonymousNotifiable;
-
-        foreach ($channels as $channel => $routes) {
-            $notifiables->route($channel, $routes);
-        }
-
-        return $notifiables;
     }
 }
