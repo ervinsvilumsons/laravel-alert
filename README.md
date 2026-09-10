@@ -47,9 +47,10 @@ The default configuration is:
 ```php
 return [
     'enabled' => env('ALERTS_ENABLED', true),
+    'queue' => env('ALERTS_QUEUE', 'default'),
     'channels' => [
         'mail' => ['admin@example.com'],
-        // 'slack' => ['webhook-url'],
+        // 'slack' => ['channek'],
     ],
     'throttle' => 3600,
     'notification' => AlertNotification::class,
