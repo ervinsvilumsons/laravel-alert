@@ -10,6 +10,7 @@ use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Queue;
 use Throwable;
 
 class AlertManager implements AlertManagerContract
@@ -42,20 +43,33 @@ class AlertManager implements AlertManagerContract
             AlertNotification::class,
         );
 
-        try {
-            self::getNotifiables($channels)->notify(
-                new $notificationClass([
-                    'title' => $title,
-                    'message' => $message,
-                    'context' => $context,
-                    'level' => $level,
-                ])
-            );
-        } catch (Throwable $e) {
-            Log::error('Failed to send alert', [
-                'exception' => $e,
-                'notification' => $notificationClass,
+        foreach ($channels as $channel => $routes) {
+            $notifiables = new AnonymousNotifiable;
+            $notifiables->route($channel, $routes);
+
+            $notification = new $notificationClass([
+                'title' => $title,
+                'message' => $message,
+                'context' => $context,
+                'level' => $level,
             ]);
+
+            try {
+                if (self::shouldUseQueue()) {
+                    try {
+                        $notifiables->notify($notification);
+                    } catch (Throwable) {
+                        $notifiables->notifyNow($notification);
+                    }
+                } else {
+                    $notifiables->notifyNow($notification);
+                }
+            } catch (Throwable $e) {
+                Log::error('Failed to send alert', [
+                    'channel' => $channel,
+                    'exception' => $e,
+                ]);
+            }
         }
     }
 
@@ -118,17 +132,20 @@ class AlertManager implements AlertManagerContract
         return $result;
     }
 
-    /**
-     * @param  array<string, array<int, string>>  $channels
-     */
-    private static function getNotifiables(array $channels): AnonymousNotifiable
+    private static function shouldUseQueue(): bool
     {
-        $notifiables = new AnonymousNotifiable;
+        $default = Config::string('queue.default', 'sync');
 
-        foreach ($channels as $channel => $routes) {
-            $notifiables->route($channel, $routes);
+        if ($default === 'sync') {
+            return false;
         }
 
-        return $notifiables;
+        try {
+            Queue::connection($default)->size();
+
+            return true;
+        } catch (Throwable) {
+            return false;
+        }
     }
 }

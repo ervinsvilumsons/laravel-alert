@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace ErvinsVilumsons\LaravelAlert\Notifications;
 
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Notifications\Slack\BlockKit\Blocks\ContextBlock;
@@ -11,28 +14,33 @@ use Illuminate\Notifications\Slack\BlockKit\Blocks\SectionBlock;
 use Illuminate\Notifications\Slack\SlackMessage;
 use Illuminate\Support\Facades\Config;
 
-class AlertNotification extends Notification
+class AlertNotification extends Notification implements ShouldQueue
 {
+    use Queueable;
+
     const string SUBJECT = 'Service Alert';
 
     /**
      * @param  array{title: string, message: string, context: array<string, mixed>, level: string}  $data
      */
-    public function __construct(public array $data) {}
+    public function __construct(public array $data)
+    {
+        $this->onQueue(Config::string('alert-manager.queue', 'default'));
+    }
 
     /**
      * @return array<int, string>
      */
     public function via(object $notifiable): array
     {
-        return array_values(
-            array_unique(
-                array_filter(
-                    array_keys(Config::array('alert-manager.channels', ['mail' => []])),
-                    is_string(...),
-                )
-            )
-        );
+        if ($notifiable instanceof AnonymousNotifiable) {
+            /** @var array<string, mixed> $routes */
+            $routes = $notifiable->routes;
+
+            return array_keys($routes);
+        }
+
+        return ['mail'];
     }
 
     private function formatValue(mixed $value): string

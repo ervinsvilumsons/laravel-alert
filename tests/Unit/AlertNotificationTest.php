@@ -27,15 +27,6 @@ function createNotification(): AlertNotification
     return new AlertNotification($data);
 }
 
-it('uses channels from config', function () {
-    config(['alert-manager.channels' => ['mail' => [], 'slack' => []]]);
-
-    $notification = createNotification();
-    $notifiable = new stdClass;
-
-    expect($notification->via($notifiable))->toBe(['mail', 'slack']);
-});
-
 it('builds a correct mail message', function () {
     $notification = createNotification();
     $mail = $notification->toMail(new stdClass);
