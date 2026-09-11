@@ -88,6 +88,10 @@ class AlertManager implements AlertManagerContract
 
     private static function checkThrottle(string $cacheKey): bool
     {
+        if (Config::get('cache.default') === null) {
+            return true;
+        }
+
         try {
             return Cache::add(
                 $cacheKey,
