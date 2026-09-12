@@ -39,6 +39,7 @@ jobs:
             libxml,
             mbstring,
             zip
+          cache: composer
           coverage: xdebug
       
       - name: Install dependencies
