@@ -9,29 +9,51 @@ on:
       - staging
 
 jobs:
-  tests:
-    runs-on: ubuntu-latest
+  ci:
+    runs-on: ${{ matrix.os }}
 
     env:
-      PHP_VERSION: "8.4"
+      PHP_COVERAGE_VERSION: '8.5'
+      OS_COVERAGE: ubuntu-latest
+
+    strategy:
+        fail-fast: true
+        matrix:
+            os: [ubuntu-latest, macos-latest, windows-latest]
+            php: ['8.4', '8.5']
+
+    name: PHP ${{ matrix.php }} on ${{ matrix.os }}
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: ${{ env.PHP_VERSION }}
+          php-version: ${{ matrix.php }}
+          extensions: >
+            dom,
+            curl,
+            fileinfo,
+            libxml,
+            mbstring,
+            zip
           coverage: xdebug
       
-      - name: Prepare environment
+      - name: Install dependencies
         run: composer install --no-interaction --prefer-dist --optimize-autoloader
 
       - name: Run tests
+        if: matrix.os != env.OS_COVERAGE
+        run: composer test
+
+      - name: Run tests with quality & coverage
+        if: matrix.os == env.OS_COVERAGE
         run: composer check
 
       - name: Upload coverage reports to Codecov
+        if: matrix.os == env.OS_COVERAGE && matrix.php == env.PHP_COVERAGE_VERSION
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
