@@ -2,10 +2,10 @@
 
 use ErvinsVilumsons\LaravelAlert\Notifications\AlertNotification;
 use Illuminate\Contracts\Queue\Job;
+use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Slack\SlackMessage;
 use Illuminate\Queue\Events\JobFailed;
-use Mockery;
 use Mockery\MockInterface;
 
 function createNotification(): AlertNotification
@@ -102,4 +102,53 @@ it('builds slack message without context', function () {
     $slack = $notification->toSlack(new stdClass);
 
     expect($slack)->toBeInstanceOf(SlackMessage::class);
+});
+
+it('uses configured routes for anonymous notifiable', function () {
+    $notification = createNotification();
+
+    $notifiable = new AnonymousNotifiable;
+
+    $notifiable->route('mail', 'test@example.com');
+    $notifiable->route('slack', 'test-route');
+
+    expect($notification->via($notifiable))
+        ->toBe(['mail', 'slack']);
+});
+
+it('handles critical mail level', function () {
+    $notification = new AlertNotification([
+        'title' => 'Critical',
+        'message' => 'Critical alert',
+        'context' => [],
+        'level' => 'critical',
+    ]);
+
+    $mail = $notification->toMail(new stdClass);
+
+    expect($mail)
+        ->toBeInstanceOf(MailMessage::class)
+        ->and($mail->level)->toBe('error');
+});
+
+it('handles error mail level', function () {
+    $notification = new AlertNotification([
+        'title' => 'Error',
+        'message' => 'Error alert',
+        'context' => [],
+        'level' => 'error',
+    ]);
+
+    $mail = $notification->toMail(new stdClass);
+
+    expect($mail)
+        ->toBeInstanceOf(MailMessage::class)
+        ->and($mail->level)->toBe('error');
+});
+
+it('uses mail channel for a regular notifiable', function () {
+    $notification = createNotification();
+
+    expect($notification->via(new stdClass))
+        ->toBe(['mail']);
 });
