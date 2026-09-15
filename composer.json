@@ -24,6 +24,7 @@
         "laravel/slack-notification-channel": "^3.10",
         "orchestra/testbench": "^11.2",
         "pestphp/pest": "^5",
+        "pestphp/pest-plugin-phpstan": "^5.2",
         "phpstan/phpstan": "^2.2",
         "rector/rector": "^2.6"
     },
@@ -42,7 +43,7 @@
     },
     "scripts": {
         "prepare": "@php vendor/bin/testbench package:discover --ansi",
-        "analyse": "@php vendor/bin/phpstan analyse src tests --level=10",
+        "analyse": "@php vendor/bin/phpstan analyse",
         "format": "@php vendor/bin/pint",
         "format:test": "@php vendor/bin/pint --test",
         "refactor": "@php vendor/bin/rector",

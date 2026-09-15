@@ -6,10 +6,10 @@ namespace ErvinsVilumsons\LaravelAlert;
 
 use ErvinsVilumsons\LaravelAlert\Contracts\AlertManagerContract;
 use ErvinsVilumsons\LaravelAlert\Notifications\AlertNotification;
+use ErvinsVilumsons\LaravelAlert\Support\Throttle;
 use Illuminate\Contracts\Notifications\Dispatcher;
 use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Notifications\Notification;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -27,74 +27,10 @@ class AlertManager implements AlertManagerContract
         'warning',
     ];
 
-    /** @var array<string, int> unix expiry — used only when cache is down */
-    private static array $localThrottle = [];
-
     private const float FAILURE_COOLDOWN = 30.0; // seconds to skip a broken backend
-
-    /** @var float unix ts — Redis cache is skipped until this time */
-    private static float $cacheDisabledUntil = 0.0;
 
     /** @var float unix ts — queued dispatch is skipped until this time */
     private static float $queueDisabledUntil = 0.0;
-
-    public static function send(
-        string $key,
-        string $title,
-        string $message,
-        array $context = [],
-        string $level = 'error'
-    ): void {
-        if (! Config::boolean('alert-manager.enabled', true)) {
-            return;
-        }
-
-        $channels = self::getChannels();
-        if ($channels === []) {
-            return;
-        }
-
-        $level = in_array($level, self::LEVELS, true) ? $level : 'error';
-        $context = self::jsonSafe($context);
-        $cacheKey = 'alert:'.md5($key);
-        $ttl = Config::integer('alert-manager.throttle', 60);
-
-        if (! self::acquireThrottle($cacheKey, $ttl)) {
-            return;
-        }
-
-        $notification = self::makeNotification($title, $message, $context, $level);
-        if ($notification === null) {
-            self::releaseThrottle($cacheKey, $ttl);
-
-            return;
-        }
-
-        $sent = false;
-
-        try {
-            foreach ($channels as $channel => $routes) {
-                foreach (self::routeValues($channel, $routes) as $route) {
-                    if (self::deliver($channel, $route, $notification, $key, $title, $level)) {
-                        $sent = true;
-                    }
-                }
-            }
-        } finally {
-            if (! $sent) {
-                self::releaseThrottle($cacheKey, $ttl);
-            }
-        }
-    }
-
-    /**
-     * @param  array<int, string>  $routes
-     * @return array<int, string|array<int, string>>
-     */
-    private static function routeValues(string $channel, array $routes): array
-    {
-        return $channel === 'mail' ? [$routes] : $routes;
-    }
 
     private static function deliver(
         string $channel,
@@ -140,78 +76,24 @@ class AlertManager implements AlertManagerContract
         }
     }
 
-    private static function acquireThrottle(string $cacheKey, int $ttl): bool
+    /** @return array<string, array<int, string>> */
+    private static function getChannels(): array
     {
-        if ($ttl <= 0) {
-            return true;
-        }
+        $result = [];
 
-        // Try Redis only if the breaker is closed.
-        if (microtime(true) >= self::$cacheDisabledUntil) {
-            try {
-                return Cache::add($cacheKey, true, $ttl);
-            } catch (Throwable $e) {
-                self::$cacheDisabledUntil = microtime(true) + self::FAILURE_COOLDOWN;
-                Log::warning('Cache unavailable, using in-process throttle', [
-                    'exception' => $e,
-                ]);
+        foreach (Config::array('alert-manager.channels', []) as $channel => $values) {
+            if (! is_string($channel) || ! is_array($values)) {
+                continue;
+            }
+
+            $values = array_values(array_unique(array_filter($values, is_string(...))));
+
+            if ($values !== []) {
+                $result[$channel] = $values;
             }
         }
 
-        // Fallback: in-process throttle (per FPM worker)
-        $now = time();
-        if ((self::$localThrottle[$cacheKey] ?? 0) > $now) {
-            return false;
-        }
-        self::$localThrottle[$cacheKey] = $now + $ttl;
-
-        return true;
-    }
-
-    private static function releaseThrottle(string $cacheKey, int $ttl): void
-    {
-        if ($ttl <= 0) {
-            return;
-        }
-
-        if (microtime(true) >= self::$cacheDisabledUntil) {
-            try {
-                Cache::forget($cacheKey);
-
-                return;
-            } catch (Throwable) {
-                self::$cacheDisabledUntil = microtime(true) + self::FAILURE_COOLDOWN;
-            }
-        }
-
-        unset(self::$localThrottle[$cacheKey]);
-    }
-
-    /**
-     * @param  array<string, mixed>  $context
-     */
-    private static function makeNotification(
-        string $title,
-        string $message,
-        array $context,
-        string $level
-    ): ?Notification {
-        $class = Config::get('alert-manager.notification', AlertNotification::class);
-
-        if (! is_string($class) || ! is_a($class, AlertNotification::class, true)) {
-            Log::error('alert-manager.notification must extend AlertNotification', [
-                'class' => $class,
-            ]);
-
-            return null;
-        }
-
-        return new $class([
-            'title' => $title,
-            'message' => $message,
-            'context' => $context,
-            'level' => $level,
-        ]);
+        return $result;
     }
 
     /**
@@ -243,24 +125,89 @@ class AlertManager implements AlertManagerContract
         return $result;
     }
 
-    /** @return array<string, array<int, string>> */
-    private static function getChannels(): array
-    {
-        $result = [];
+    /**
+     * @param  array<string, mixed>  $context
+     */
+    private static function makeNotification(
+        string $title,
+        string $message,
+        array $context,
+        string $level
+    ): ?Notification {
+        $class = Config::get('alert-manager.notification', AlertNotification::class);
 
-        foreach (Config::array('alert-manager.channels', []) as $channel => $values) {
-            if (! is_string($channel) || ! is_array($values)) {
-                continue;
-            }
+        if (! is_string($class) || ! is_a($class, AlertNotification::class, true)) {
+            Log::error('alert-manager.notification must extend AlertNotification', [
+                'class' => $class,
+            ]);
 
-            $values = array_values(array_unique(array_filter($values, is_string(...))));
-
-            if ($values !== []) {
-                $result[$channel] = $values;
-            }
+            return null;
         }
 
-        return $result;
+        return new $class([
+            'title' => $title,
+            'message' => $message,
+            'context' => $context,
+            'level' => $level,
+        ]);
+    }
+
+    /**
+     * @param  array<int, string>  $routes
+     * @return array<int, string|array<int, string>>
+     */
+    private static function routeValues(string $channel, array $routes): array
+    {
+        return $channel === 'mail' ? [$routes] : $routes;
+    }
+
+    public static function send(
+        string $key,
+        string $title,
+        string $message,
+        array $context = [],
+        string $level = 'error'
+    ): void {
+        if (! Config::boolean('alert-manager.enabled', true)) {
+            return;
+        }
+
+        $channels = self::getChannels();
+        if ($channels === []) {
+            return;
+        }
+
+        $level = in_array($level, self::LEVELS, true) ? $level : 'error';
+        $context = self::jsonSafe($context);
+        $cacheKey = 'alert:'.md5($key);
+        $ttl = Config::integer('alert-manager.throttle.ttl', 60);
+
+        if (! Throttle::acquire($cacheKey, $ttl)) {
+            return;
+        }
+
+        $notification = self::makeNotification($title, $message, $context, $level);
+        if ($notification === null) {
+            Throttle::release($cacheKey, $ttl);
+
+            return;
+        }
+
+        $sent = false;
+
+        try {
+            foreach ($channels as $channel => $routes) {
+                foreach (self::routeValues($channel, $routes) as $route) {
+                    if (self::deliver($channel, $route, $notification, $key, $title, $level)) {
+                        $sent = true;
+                    }
+                }
+            }
+        } finally {
+            if (! $sent) {
+                Throttle::release($cacheKey, $ttl);
+            }
+        }
     }
 
     /**
@@ -270,8 +217,7 @@ class AlertManager implements AlertManagerContract
      */
     public static function resetState(): void
     {
-        self::$localThrottle = [];
-        self::$cacheDisabledUntil = 0.0;
+        Throttle::reset();
         self::$queueDisabledUntil = 0.0;
     }
 }

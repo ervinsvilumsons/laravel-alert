@@ -67,7 +67,10 @@ return [
         'mail' => ['admin@example.com'],
         // 'slack' => ['slack channel name'],
     ],
-    'throttle' => 3600,
+    'throttle' => [
+        'ttl' => 3600,
+        'path' => storage_path('framework/cache/alert-throttle'),
+    ],
     'notification' => AlertNotification::class,
 ];
 ```
@@ -78,6 +81,24 @@ To add or replace notification channels, create a notification class with the sa
 
 ```php
 'notification' => App\Notifications\CustomAlertNotification::class,
+```
+
+## 🧹 Console Commands
+
+### alert:prune-throttle
+
+Alert throttling stores lock files in the directory configured under `alert-manager.throttle.path` (default: `storage/framework/cache/alert-throttle`). To remove all existing throttle lock files:
+
+```bash
+php artisan alert:prune-throttle
+```
+
+The command is registered automatically and scheduled daily by the package's service provider. You do not need to wire anything into app/Console/Kernel.php or routes/console.php.
+
+Sample output:
+
+```text
+Deleted 3 file(s).
 ```
 
 ## ⚖️ License

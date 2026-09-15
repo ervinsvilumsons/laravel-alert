@@ -17,7 +17,8 @@ beforeEach(function (): void {
     Config::set('alert-manager.enabled', true);
     Config::set('alert-manager.channels', ['mail' => ['test@example.com']]);
     Config::set('alert-manager.notification', AlertNotification::class);
-    Config::set('alert-manager.throttle', 60);
+    Config::set('alert-manager.throttle.ttl', 60);
+    Config::set('alert-manager.throttle.path', $this->throttleDir());
 });
 
 afterEach(function (): void {
@@ -34,7 +35,7 @@ function configureAlertManager(
 ): void {
     Config::set('alert-manager.channels', $channels);
     Config::set('alert-manager.notification', $notification);
-    Config::set('alert-manager.throttle', $throttle);
+    Config::set('alert-manager.throttle.ttl', $throttle);
 }
 
 function expectThrottle(bool $acquired = true): void
@@ -143,7 +144,7 @@ it('returns when throttled', function (): void {
 
 it('skips cache when throttle is disabled', function (int $throttle): void {
     NotificationFacade::fake();
-    Config::set('alert-manager.throttle', $throttle);
+    Config::set('alert-manager.throttle.ttl', $throttle);
     Cache::shouldReceive('add')->never();
     Cache::shouldReceive('forget')->never();
 
@@ -252,71 +253,6 @@ it('ignores invalid channel entries', function (): void {
     sendAlert('invalid-channel-config');
 
     NotificationFacade::assertSentOnDemand(AlertNotification::class);
-});
-
-// ---------------------------------------------------------- throttle IO
-
-it('uses local throttle when cache throws', function (): void {
-    $key = 'alert:cache-failure-'.uniqid('', true);
-
-    Cache::shouldReceive('add')
-        ->once()
-        ->andThrow(new RuntimeException('cache unavailable'));
-
-    $first = invokePrivate('acquireThrottle', [$key, 60]);
-    $second = invokePrivate('acquireThrottle', [$key, 60]);
-
-    expect($first)->toBeTrue();
-    expect($second)->toBeFalse();
-});
-
-it('does not touch cache when throttle is disabled', function (): void {
-    Cache::shouldReceive('add')->never();
-
-    $result = invokePrivate('acquireThrottle', ['alert:disabled-throttle', 0]);
-
-    expect($result)->toBeTrue();
-});
-
-it('does not acquire throttle when cache add returns false', function (): void {
-    Cache::shouldReceive('add')->once()->andReturn(false);
-
-    $result = invokePrivate('acquireThrottle', ['alert:already-throttled', 60]);
-
-    expect($result)->toBeFalse();
-});
-
-it('acquires throttle when cache add returns true', function (): void {
-    Cache::shouldReceive('add')->once()->andReturn(true);
-
-    $result = invokePrivate('acquireThrottle', ['alert:acquired', 60]);
-
-    expect($result)->toBeTrue();
-});
-
-it('returns early from release when throttle is disabled', function (): void {
-    Cache::shouldReceive('forget')->never();
-
-    $result = invokePrivate('releaseThrottle', ['alert:disabled-release', 0]);
-
-    expect($result)->toBeNull();
-});
-
-it('clears local throttle when cache forget fails', function (): void {
-    $key = 'alert:release-local-'.uniqid('', true);
-
-    Cache::shouldReceive('add')
-        ->once()
-        ->andThrow(new RuntimeException('cache unavailable'));
-
-    Cache::shouldReceive('forget')->never();
-
-    $first = invokePrivate('acquireThrottle', [$key, 60]);
-    invokePrivate('releaseThrottle', [$key, 60]);
-    $second = invokePrivate('acquireThrottle', [$key, 60]);
-
-    expect($first)->toBeTrue();
-    expect($second)->toBeTrue();
 });
 
 // -------------------------------------------------------- deliver() IO

@@ -19,7 +19,10 @@ return [
 
     ],
 
-    'throttle' => 3600,
+    'throttle' => [
+        'ttl' => 3600,
+        'path' => storage_path('framework/cache/alert-throttle'),
+    ],
 
     /*
     |--------------------------------------------------------------------------
