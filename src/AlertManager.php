@@ -16,7 +16,7 @@ use Throwable;
 
 class AlertManager implements AlertManagerContract
 {
-    private const array LEVELS = [
+    public const array LEVELS = [
         'alert',
         'critical',
         'debug',
@@ -29,6 +29,14 @@ class AlertManager implements AlertManagerContract
 
     /** @var array<string, int> unix expiry — used only when cache is down */
     private static array $localThrottle = [];
+
+    private const float FAILURE_COOLDOWN = 30.0; // seconds to skip a broken backend
+
+    /** @var float unix ts — Redis cache is skipped until this time */
+    private static float $cacheDisabledUntil = 0.0;
+
+    /** @var float unix ts — queued dispatch is skipped until this time */
+    private static float $queueDisabledUntil = 0.0;
 
     public static function send(
         string $key,
@@ -98,18 +106,23 @@ class AlertManager implements AlertManagerContract
     ): bool {
         $notifiable = (new AnonymousNotifiable)->route($channel, $route);
 
-        try {
-            $notifiable->notify($notification);
+        // Try queued dispatch unless we know the queue backend is down.
+        if (microtime(true) >= self::$queueDisabledUntil) {
+            try {
+                $notifiable->notify($notification);
 
-            return true;
-        } catch (Throwable $e) {
-            Log::warning('Alert queue dispatch failed, sending sync', [
-                'key' => $key,
-                'channel' => $channel,
-                'exception' => $e,
-            ]);
+                return true;
+            } catch (Throwable $e) {
+                self::$queueDisabledUntil = microtime(true) + self::FAILURE_COOLDOWN;
+                Log::warning('Alert queue dispatch failed, sending sync', [
+                    'key' => $key,
+                    'channel' => $channel,
+                    'exception' => $e,
+                ]);
+            }
         }
 
+        // Sync fallback — also bounded by the mailer/HTTP client timeouts.
         try {
             app(Dispatcher::class)->sendNow($notifiable, $notification, [$channel]);
 
@@ -133,17 +146,26 @@ class AlertManager implements AlertManagerContract
             return true;
         }
 
-        try {
-            return Cache::add($cacheKey, true, $ttl);
-        } catch (Throwable) {
-            $now = time();
-            if ((self::$localThrottle[$cacheKey] ?? 0) > $now) {
-                return false;
+        // Try Redis only if the breaker is closed.
+        if (microtime(true) >= self::$cacheDisabledUntil) {
+            try {
+                return Cache::add($cacheKey, true, $ttl);
+            } catch (Throwable $e) {
+                self::$cacheDisabledUntil = microtime(true) + self::FAILURE_COOLDOWN;
+                Log::warning('Cache unavailable, using in-process throttle', [
+                    'exception' => $e,
+                ]);
             }
-            self::$localThrottle[$cacheKey] = $now + $ttl;
-
-            return true;
         }
+
+        // Fallback: in-process throttle (per FPM worker)
+        $now = time();
+        if ((self::$localThrottle[$cacheKey] ?? 0) > $now) {
+            return false;
+        }
+        self::$localThrottle[$cacheKey] = $now + $ttl;
+
+        return true;
     }
 
     private static function releaseThrottle(string $cacheKey, int $ttl): void
@@ -152,11 +174,17 @@ class AlertManager implements AlertManagerContract
             return;
         }
 
-        try {
-            Cache::forget($cacheKey);
-        } catch (Throwable) {
-            unset(self::$localThrottle[$cacheKey]);
+        if (microtime(true) >= self::$cacheDisabledUntil) {
+            try {
+                Cache::forget($cacheKey);
+
+                return;
+            } catch (Throwable) {
+                self::$cacheDisabledUntil = microtime(true) + self::FAILURE_COOLDOWN;
+            }
         }
+
+        unset(self::$localThrottle[$cacheKey]);
     }
 
     /**
@@ -233,5 +261,17 @@ class AlertManager implements AlertManagerContract
         }
 
         return $result;
+    }
+
+    /**
+     * Reset circuit breakers and in-process throttle.
+     *
+     * @internal for tests only — do not call from application code.
+     */
+    public static function resetState(): void
+    {
+        self::$localThrottle = [];
+        self::$cacheDisabledUntil = 0.0;
+        self::$queueDisabledUntil = 0.0;
     }
 }

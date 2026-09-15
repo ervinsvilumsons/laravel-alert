@@ -23,6 +23,21 @@ php artisan vendor:publish --tag=alert-manager
 
 This creates `config/alert-manager.php`.
 
+## 📢 Channels
+
+**Mail**
+
+<details>
+<summary><b>Slack</b></summary>
+
+```bash
+composer require laravel/slack-notification-channel
+```
+
+The notification app must be invited to the Slack channel before alerts will be delivered.
+[Read more](https://laravel.com/framework/docs/notifications#slack-notifications) about Slack notification configuration.
+</details>
+
 ## 🚀 Quick Start
 
 ```php
