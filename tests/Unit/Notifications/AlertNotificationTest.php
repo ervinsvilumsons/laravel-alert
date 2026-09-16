@@ -2,10 +2,8 @@
 
 use ErvinsVilumsons\LaravelAlert\Notifications\AlertNotification;
 use Illuminate\Contracts\Queue\Job;
-use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Notifications\Slack\SlackMessage;
+use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Queue\Events\JobFailed;
-use Mockery;
 use Mockery\MockInterface;
 
 function createNotification(): AlertNotification
@@ -18,7 +16,7 @@ function createNotification(): AlertNotification
     $event = new JobFailed('redis', $job, new Exception('Test exception message'));
 
     $data = [
-        'title' => 'Test excpeption title',
+        'title' => 'Test exception title',
         'message' => $event->exception->getMessage(),
         'context' => ['meta' => ['foo' => 'bar']],
         'level' => 'error',
@@ -31,8 +29,7 @@ it('builds a correct mail message', function () {
     $notification = createNotification();
     $mail = $notification->toMail(new stdClass);
 
-    expect($mail)->toBeInstanceOf(MailMessage::class)
-        ->and($mail->subject)->toContain('Service Alert');
+    expect($mail->subject)->toContain('Service Alert');
 });
 
 it('builds a correct slack message', function () {
@@ -40,7 +37,9 @@ it('builds a correct slack message', function () {
 
     $slack = $notification->toSlack(new stdClass);
 
-    expect($slack)->toBeInstanceOf(SlackMessage::class);
+    $payload = $slack->toArray();
+
+    expect($payload['text'])->toContain('Test exception title');
 });
 
 it('builds a correct slack message with blocks', function () {
@@ -48,12 +47,10 @@ it('builds a correct slack message with blocks', function () {
 
     $slack = $notification->toSlack(new stdClass);
 
-    expect($slack)->toBeInstanceOf(SlackMessage::class);
-
     // Force the blocks to be built
     $payload = $slack->toArray();
 
-    expect($payload)->toBeArray()
+    expect($payload)
         ->and($payload)->toHaveKey('blocks');
 });
 
@@ -62,7 +59,7 @@ it('formats non-scalar values in mail context', function () {
 
     $mail = $notification->toMail(new stdClass);
 
-    expect($mail)->toBeInstanceOf(MailMessage::class);
+    expect($mail->subject)->toContain('Service Alert');
 });
 
 it('handles warning level in mail', function () {
@@ -75,7 +72,7 @@ it('handles warning level in mail', function () {
 
     $mail = $notification->toMail(new stdClass);
 
-    expect($mail)->toBeInstanceOf(MailMessage::class);
+    expect($mail->subject)->toContain('Service Alert');
 });
 
 it('handles info level in mail', function () {
@@ -88,7 +85,7 @@ it('handles info level in mail', function () {
 
     $mail = $notification->toMail(new stdClass);
 
-    expect($mail)->toBeInstanceOf(MailMessage::class);
+    expect($mail->subject)->toContain('Service Alert');
 });
 
 it('builds slack message without context', function () {
@@ -101,5 +98,54 @@ it('builds slack message without context', function () {
 
     $slack = $notification->toSlack(new stdClass);
 
-    expect($slack)->toBeInstanceOf(SlackMessage::class);
+    $payload = $slack->toArray();
+
+    expect($payload['text'])->toContain('No Context');
+});
+
+it('uses configured routes for anonymous notifiable', function () {
+    $notification = createNotification();
+
+    $notifiable = new AnonymousNotifiable;
+
+    $notifiable->route('mail', 'test@example.com');
+    $notifiable->route('slack', 'test-route');
+
+    expect($notification->via($notifiable))
+        ->toBe(['mail', 'slack']);
+});
+
+it('handles critical mail level', function () {
+    $notification = new AlertNotification([
+        'title' => 'Critical',
+        'message' => 'Critical alert',
+        'context' => [],
+        'level' => 'critical',
+    ]);
+
+    $mail = $notification->toMail(new stdClass);
+
+    expect($mail)
+        ->and($mail->level)->toBe('error');
+});
+
+it('handles error mail level', function () {
+    $notification = new AlertNotification([
+        'title' => 'Error',
+        'message' => 'Error alert',
+        'context' => [],
+        'level' => 'error',
+    ]);
+
+    $mail = $notification->toMail(new stdClass);
+
+    expect($mail)
+        ->and($mail->level)->toBe('error');
+});
+
+it('uses mail channel for a regular notifiable', function () {
+    $notification = createNotification();
+
+    expect($notification->via(new stdClass))
+        ->toBe(['mail']);
 });
