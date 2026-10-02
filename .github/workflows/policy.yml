@@ -11,8 +11,10 @@ jobs:
 
     steps:
       - name: Check source branch
+        env:
+          HEAD_REF: ${{ github.head_ref }}
         run: |
-          if [ "${{ github.head_ref }}" != "staging" ]; then
+          if [ "${HEAD_REF}" != "staging" ]; then
             echo "❌ Only staging can be merged into main."
             exit 1
           fi
