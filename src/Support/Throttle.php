@@ -100,7 +100,7 @@ final class Throttle
 
         $dir = $filesystem->directory;
 
-        $path = $dir.'/'.md5($cacheKey).'.lock';
+        $path = $dir.'/'.hash('sha256', $cacheKey).'.lock';
 
         $handle = $filesystem->open($path, 'c+');
 
@@ -173,7 +173,7 @@ final class Throttle
         }
 
         self::filesystem()->delete(
-            $dir.'/'.md5($cacheKey).'.lock'
+            $dir.'/'.hash('sha256', $cacheKey).'.lock'
         );
     }
 

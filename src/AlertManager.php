@@ -179,7 +179,7 @@ class AlertManager implements AlertManagerContract
 
         $level = in_array($level, self::LEVELS, true) ? $level : 'error';
         $context = self::jsonSafe($context);
-        $cacheKey = 'alert:'.md5($key);
+        $cacheKey = 'alert:'.hash('sha256', $key);
         $ttl = Config::integer('alert-manager.throttle.ttl', 60);
 
         if (! Throttle::acquire($cacheKey, $ttl)) {
