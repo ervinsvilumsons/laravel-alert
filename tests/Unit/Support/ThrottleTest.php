@@ -134,7 +134,7 @@ it('falls back to in-process throttle when opening the lock file fails', functio
     @mkdir($dir, 0775, true);
 
     $key = 'alert:fopen-fail-'.uniqid('', true);
-    $lockPath = $dir.'/'.md5($key).'.lock';
+    $lockPath = $dir.'/'.hash('sha256', $key).'.lock';
 
     @mkdir($lockPath, 0775);
 

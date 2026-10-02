@@ -74,7 +74,7 @@ abstract class TestCase extends OrchestraTestCase
         $paths = [];
 
         for ($i = 0; $i < $count; $i++) {
-            $path = $dir.'/'.md5("key-{$i}").'.lock';
+            $path = $dir.'/'.hash('sha256', "key-{$i}").'.lock';
             file_put_contents($path, "key-{$i}\n".(microtime(true) + 60));
             $paths[] = $path;
         }
